@@ -180,3 +180,36 @@ class RoboschoolForwardWalker(SharedMemoryClientEnv):
         self.camera_z = smoothness*self.camera_z + (1-smoothness)*camz
         self.camera.move_and_look_at(self.camera_x, self.camera_y, self.camera_z, x, y, 0.6)
 
+class JvonForwardWalker(RoboschoolForwardWalker):
+    def calc_state(self):
+        j = np.array([j.current_relative_position() for j in self.ordered_joints], dtype=np.float32).flatten()
+        # even elements [0::2] position, scaled to -1..+1 between limits
+        # odd elements  [1::2] angular speed, scaled to show -1..+1
+        self.joint_speeds = j[1::2]
+        self.joints_at_limit = np.count_nonzero(np.abs(j[0::2]) > 0.99)
+
+        body_pose = self.robot_body.pose()
+        parts_xyz = np.array( [p.pose().xyz() for p in self.parts.values()] ).flatten()
+        self.body_xyz = (parts_xyz[0::3].mean(), parts_xyz[1::3].mean(), body_pose.xyz()[2])  # torso z is more informative than mean z
+        self.body_rpy = body_pose.rpy()
+        z = self.body_xyz[2]
+        r, p, yaw = self.body_rpy
+        if self.initial_z==None:
+            self.initial_z = z
+        self.walk_target_theta = np.arctan2( self.walk_target_y - self.body_xyz[1], self.walk_target_x - self.body_xyz[0] )
+        self.walk_target_dist  = np.linalg.norm( [self.walk_target_y - self.body_xyz[1], self.walk_target_x - self.body_xyz[0]] )
+        self.angle_to_target = self.walk_target_theta - yaw
+
+        self.rot_minus_yaw = np.array(
+            [[np.cos(-yaw), -np.sin(-yaw), 0],
+             [np.sin(-yaw),  np.cos(-yaw), 0],
+             [           0,             0, 1]]
+            )
+        vx, vy, vz = np.dot(self.rot_minus_yaw, self.robot_body.speed())  # rotate speed back to body point of view
+
+        more = np.array([
+            z-self.initial_z,
+            np.sin(self.angle_to_target), np.cos(self.angle_to_target),
+            0.3*vx, 0.3*vy, 0.3*vz,    # 0.3 is just scaling typical speed into -1..+1, no physical sense here
+            r, p], dtype=np.float32)
+        return j[0::2]

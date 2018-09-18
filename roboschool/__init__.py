@@ -62,6 +62,14 @@ register(
     )
 
 register(
+    id='JvonAnt-v0',
+    entry_point='roboschool:JvonAnt',
+    max_episode_steps=1000,
+    reward_threshold=2500.0,
+    tags={ "pg_complexity": 8*1000000 },
+    )
+
+register(
     id='RoboschoolHumanoid-v1',
     entry_point='roboschool:RoboschoolHumanoid',
     max_episode_steps=1000,
@@ -110,6 +118,7 @@ from roboschool.gym_mujoco_walkers import RoboschoolHopper
 from roboschool.gym_mujoco_walkers import RoboschoolWalker2d
 from roboschool.gym_mujoco_walkers import RoboschoolHalfCheetah
 from roboschool.gym_mujoco_walkers import RoboschoolAnt
+from roboschool.gym_mujoco_walkers import JvonAnt
 from roboschool.gym_mujoco_walkers import RoboschoolHumanoid
 from roboschool.gym_humanoid_flagrun import RoboschoolHumanoidFlagrun
 from roboschool.gym_humanoid_flagrun import RoboschoolHumanoidFlagrunHarder
