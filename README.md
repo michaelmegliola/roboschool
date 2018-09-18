@@ -4,7 +4,10 @@ NEWS
 
 **2018 September 18**
 
-I forked Roboschool to create an Ant that has highly constrained action and observation spaces, in order to (a) create a robot that can train using shallow learning algorithms, (b) build an actual (physical) ant, and (c) try to do (a)+(b) and see what happens.
+I forked Roboschool to create an Ant that has highly constrained action and observation spaces, in order to:
+(a) create a robot that can train using shallow learning algorithms, 
+(b) build an actual (physical) ant, and 
+(c) try to do (a)+(b) and see what happens.
 
 **2018 July 9**
 
