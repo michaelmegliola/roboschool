@@ -40,7 +40,8 @@ class RoboschoolForwardWalker(SharedMemoryClientEnv):
     def apply_action(self, a):
         assert( np.isfinite(a).all() )
         for n,j in enumerate(self.ordered_joints):
-            j.set_motor_torque( self.power*j.power_coef*float(np.clip(a[n], -1, +1)) )
+            j.set_servo_target(float(a[n]),10,1,180)
+            # j.set_motor_torque( self.power*j.power_coef*float(np.clip(a[n], -1, +1)) )
 
     def calc_state(self):
         j = np.array([j.current_relative_position() for j in self.ordered_joints], dtype=np.float32).flatten()
@@ -118,10 +119,10 @@ class RoboschoolForwardWalker(SharedMemoryClientEnv):
 
         self.rewards = [
             alive,
-            progress,
-            electricity_cost,
-            joints_at_limit_cost,
-            feet_collision_cost
+            progress
+            #electricity_cost,
+            #joints_at_limit_cost,
+            #feet_collision_cost
             ]
 
         self.frame  += 1
@@ -130,7 +131,9 @@ class RoboschoolForwardWalker(SharedMemoryClientEnv):
         self.done   += done   # 2 == 1+True
         self.reward += sum(self.rewards)
         self.HUD(state, a, done)
-        return state, sum(self.rewards), bool(done), {}
+        simple_state = [1 if x > 0 else 0 for x in a]
+        #return state, sum(self.rewards), bool(done), {}
+        return simple_state, sum(self.rewards), bool(done), {}
 
     def episode_over(self, frames):
         pass
@@ -181,6 +184,15 @@ class RoboschoolForwardWalker(SharedMemoryClientEnv):
         self.camera.move_and_look_at(self.camera_x, self.camera_y, self.camera_z, x, y, 0.6)
 
 class JvonForwardWalker(RoboschoolForwardWalker):
+
+    def robot_specific_reset(self):
+        for j in self.ordered_joints:
+            j.reset_current_position(0, 0)
+        self.feet = [self.parts[f] for f in self.foot_list]
+        self.feet_contact = np.array([0.0 for f in self.foot_list], dtype=np.float32)
+        self.scene.actor_introduce(self)
+        self.initial_z = None
+
     def calc_state(self):
         j = np.array([j.current_relative_position() for j in self.ordered_joints], dtype=np.float32).flatten()
         # even elements [0::2] position, scaled to -1..+1 between limits
@@ -189,6 +201,7 @@ class JvonForwardWalker(RoboschoolForwardWalker):
         self.joints_at_limit = np.count_nonzero(np.abs(j[0::2]) > 0.99)
 
         body_pose = self.robot_body.pose()
+
         parts_xyz = np.array( [p.pose().xyz() for p in self.parts.values()] ).flatten()
         self.body_xyz = (parts_xyz[0::3].mean(), parts_xyz[1::3].mean(), body_pose.xyz()[2])  # torso z is more informative than mean z
         self.body_rpy = body_pose.rpy()
@@ -212,4 +225,6 @@ class JvonForwardWalker(RoboschoolForwardWalker):
             np.sin(self.angle_to_target), np.cos(self.angle_to_target),
             0.3*vx, 0.3*vy, 0.3*vz,    # 0.3 is just scaling typical speed into -1..+1, no physical sense here
             r, p], dtype=np.float32)
-        return j[0::2]
+
+        # return super-simplified observation
+        return np.array(body_pose.rpy() + (self.walk_target_dist,))
